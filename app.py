@@ -5,74 +5,229 @@ import base64
 st.set_page_config(page_title="Game Bắn Xe Tăng 2D", layout="centered")
 st.title("🪖 Game Bắn Xe Tăng 2D (Battle City Classic)")
 
-parts = [
-    "<!DOCTYPE html><html><head><meta charset='utf-8'>",
-    "<style>body{margin:0;padding:5px;text-align:center;font-family:sans-serif;background:#0f0f1a;color:white;}",
-    "canvas{background:#111;display:block;margin:5px auto;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.6);cursor:crosshair;}</style>",
-    "</head><body><canvas id='c' width='480' height='480'></canvas><script>",
-    "const cvs=document.getElementById('c'),ctx=cvs.getContext('2d');",
-    "let gameState='MENU';",
-    "let score=0,lives=3,healCounter=0,lastShotTime=0;",
-    "let level=1,enemiesTotal=5,enemiesSpawned=0,enemiesDefeated=0;",
-    "let isCharging=false,chargeStart=0;",
-    "let player={x:200,y:400,size:28,speed:2.5,dir:0,color:'#FF5964',hp:10,maxHp:10};",
-    "let bullets=[],enemies=[],keys={};",
-    "let hqHp=20,hqMaxHp=20,mapGrid=[],gridSize=16,tileSize=30;",
-    "window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;});",
-    "window.addEventListener('keyup',e=>{keys[e.code]=false;});",
-    "cvs.addEventListener('click',e=>{",
-    "let rect=cvs.getBoundingClientRect();let mouseX=e.clientX-rect.left;let mouseY=e.clientY-rect.top;",
-    "if(gameState==='MENU'){",
-    "let startX=45,startY=120,btnW=75,btnH=36,gapX=12,gapY=12;",
-    "for(let i=1;i<=10;i++){let r=Math.floor((i-1)/5),c=(i-1)%5;",
-    "let bx=startX+c*(btnW+gapX),by=startY+r*(btnH+gapY);",
-    "if(mouseX>=bx&&mouseX<=bx+btnW&&mouseY>=by&&mouseY<=by+btnH){startGame(i);break;}}}",
-    "else if(gameState==='PLAYING'){",
-    "if(mouseX>=cvs.width-85&&mouseX<=cvs.width-10&&mouseY>=10&&mouseY<=32){gameState='MENU';}}",
-    "else if(gameState==='GAMEOVER'||gameState==='VICTORY'){let cx=cvs.width/2,cy=cvs.height/2;",
-    "if(mouseX>=cx-90&&mouseX<=cx+90&&mouseY>=cy+30&&mouseY<=cy+70){gameState='MENU';}});",
-    "cvs.addEventListener('mousedown',()=>{if(gameState!=='PLAYING')return;let now=Date.now();if(now-lastShotTime>=200){isCharging=true;chargeStart=now;}});",
-    "cvs.addEventListener('mouseup',()=>{if(!isCharging||gameState!=='PLAYING')return;isCharging=false;",
-    "let duration=(Date.now()-chargeStart)/1000,dmg=1,bSize=8,bColor='#FFE600';",
-    "if(duration>=4.5){dmg=5;bSize=18;bColor='#00F5D4';}",
-    "else if(duration>=3.0){dmg=4;bSize=15;bColor='#F72585';}",
-    "else if(duration>=1.5){dmg=3;bSize=12;bColor='#4CC9F0';}",
-    "else if(duration>=0.5){dmg=2;bSize=10;bColor='#FB8500';}",
-    "lastShotTime=Date.now();shootPlayer(dmg,bSize,bColor);});",
-    "function startGame(lvl){level=lvl;",
-    "gridSize=16+Math.floor((level-1)*9/9);tileSize=cvs.width/gridSize;",
-    "enemiesTotal=5+(level-1)*2;mapGrid=[];",
-    "for(let r=0;r<gridSize;r++){let row=[];for(let c=0;c<gridSize;c++){",
-    "if(r===gridSize-1&&c===Math.floor(gridSize/2)){row.push(3);}",
-    "else if((r%3===1)&&(c%4===1)){row.push(2);}",
-    "else if((r%2===0&&c%3===0)&&r>0&&r<gridSize-2){row.push(1);}",
-    "else{row.push(0);}}mapGrid.push(row);}",
-    "enemiesSpawned=0;enemiesDefeated=0;enemies=[];bullets=[];",
-    "player.size=Math.max(14,tileSize-4);player.x=(gridSize*tileSize)/2-player.size/2;",
-    "player.y=(gridSize-2)*tileSize;player.hp=player.maxHp;",
-    "hqHp=20;hqMaxHp=20;score=0;lives=3;gameState='PLAYING';}",
-    "function shootPlayer(dmg,bSize,bColor){let bx=player.x+player.size/2,by=player.y+player.size/2,bdx=0,bdy=0;",
-    "if(player.dir===0)bdy=-6;else if(player.dir===1)bdx=6;else if(player.dir===2)bdy=6;else if(player.dir===3)bdx=-6;",
-    "bullets.push({x:bx-bSize/2,y:by-bSize/2,w:bSize,h:bSize,dx:bdx,dy:bdy,fromPlayer:true,damage:dmg,color:bColor});}",
-    "function checkCollision(x,y,size){let left=x,right=x+size,top=y,bottom=y+size;",
-    "if(left<0||right>cvs.width||top<0||bottom>cvs.height)return true;",
-    "let r1=Math.floor(top/tileSize),r2=Math.floor(bottom/tileSize),c1=Math.floor(left/tileSize),c2=Math.floor(right/tileSize);",
-    "for(let r=r1;r<=r2;r++){for(let c=c1;c<=c2;c++){if(r>=0&&r<gridSize&&c>=0&&c<gridSize){",
-    "if(mapGrid[r][c]===1||mapGrid[r][c]===2||(mapGrid[r][c]===3&&hqHp>0))return true;}}}return false;}",
-    "function spawnEnemy(){if(gameState==='PLAYING'&&enemies.length<4&&enemiesSpawned<enemiesTotal){",
-    "let size=Math.max(14,tileSize-4),ex,eyn=20,safe=false,attempts=0;",
-    "while(!safe&&attempts<15){ex=Math.random()*(cvs.width-size-20)+10;if(!checkCollision(ex,eyn,size)){safe=true;}attempts++;}",
-    "if(safe){let eSpeed=1+(level-1)*0.05,eHp=10+(level-1)*2;",
-    "enemies.push({x:ex,y:eyn,size:size,speed:eSpeed,dir:2,color:'#35A7FF',shootTimer:0,hp:eHp,maxHp:eHp});",
-    "enemiesSpawned++;}}}",
-    "setInterval(spawnEnemy,2000);",
-    "function update(){if(gameState!=='PLAYING')return;",
-    "healCounter++;if(healCounter>=300){healCounter=0;",
-    "if(player.hp<player.maxHp)player.hp=Math.min(player.maxHp,player.hp+0.5);",
-    "if(hqHp>0&&hqHp<hqMaxHp)hqHp=Math.min(hqMaxHp,hqHp+0.25);}",
-    "let moving=false,nx=player.x,ny=player.y;",
-    "if(keys['ArrowUp']||keys['KeyW']){player.dir=0;ny-=player.speed;moving=true;}",
-    "else if(keys['ArrowDown']||keys['KeyS']){player.dir=2;ny+=player.speed;moving=true;}",
-    "else if(keys['ArrowLeft']||keys['KeyA']){player.dir=3;nx-=player.speed;moving=true;}",
-    "else if(keys['ArrowRight']||keys['KeyD']){player.dir=1;nx+=player.speed;moving=true;}",
-    "if(moving){if(!checkCollision(nx,player.y,player.size))player.x=nx;if(!checkCollision(player.x,ny,player.size))player.y=ny;}",
+game_code = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<style>
+  body { margin: 0; padding: 5px; text-align: center; font-family: sans-serif; background: #0f0f1a; color: white; }
+  canvas { background: #111; display: block; margin: 5px auto; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); cursor: crosshair; }
+</style>
+</head>
+<body>
+<canvas id='c' width='480' height='480'></canvas>
+<script>
+const cvs = document.getElementById('c'), ctx = cvs.getContext('2d');
+let gameState = 'MENU';
+let score = 0, lives = 3, healCounter = 0, lastShotTime = 0;
+let level = 1, enemiesTotal = 5, enemiesSpawned = 0, enemiesDefeated = 0;
+let isCharging = false, chargeStart = 0;
+let player = {x: 200, y: 400, size: 28, speed: 2.5, dir: 0, color: '#FF5964', hp: 10, maxHp: 10};
+let bullets = [], enemies = [], keys = {};
+let hqHp = 20, hqMaxHp = 20, mapGrid = [], gridSize = 16, tileSize = 30;
+
+window.addEventListener('keydown', e => {
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    keys[e.code] = true;
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+cvs.addEventListener('click', e => {
+    let rect = cvs.getBoundingClientRect();
+    let mouseX = e.clientX - rect.left;
+    let mouseY = e.clientY - rect.top;
+    
+    if(gameState === 'MENU'){
+        let startX = 45, startY = 120, btnW = 75, btnH = 36, gapX = 12, gapY = 12;
+        for(let i = 1; i <= 10; i++){
+            let r = Math.floor((i - 1) / 5), c = (i - 1) % 5;
+            let bx = startX + c * (btnW + gapX), by = startY + r * (btnH + gapY);
+            if(mouseX >= bx && mouseX <= bx + btnW && mouseY >= by && mouseY <= by + btnH){
+                startGame(i);
+                break;
+            }
+        }
+    } else if(gameState === 'PLAYING'){
+        if(mouseX >= cvs.width - 85 && mouseX <= cvs.width - 10 && mouseY >= 10 && mouseY <= 32){
+            gameState = 'MENU';
+        }
+    } else if(gameState === 'GAMEOVER' || gameState === 'VICTORY'){
+        let cx = cvs.width / 2, cy = cvs.height / 2;
+        if(mouseX >= cx - 90 && mouseX <= cx + 90 && mouseY >= cy + 30 && mouseY <= cy + 70){
+            gameState = 'MENU';
+        }
+    }
+});
+
+cvs.addEventListener('mousedown', () => {
+    if(gameState !== 'PLAYING') return;
+    let now = Date.now();
+    if(now - lastShotTime >= 200){ isCharging = true; chargeStart = now; }
+});
+
+cvs.addEventListener('mouseup', () => {
+    if(!isCharging || gameState !== 'PLAYING') return;
+    isCharging = false;
+    let duration = (Date.now() - chargeStart) / 1000, dmg = 1, bSize = 8, bColor = '#FFE600';
+    if(duration >= 4.5){ dmg = 5; bSize = 18; bColor = '#00F5D4'; }
+    else if(duration >= 3.0){ dmg = 4; bSize = 15; bColor = '#F72585'; }
+    else if(duration >= 1.5){ dmg = 3; bSize = 12; bColor = '#4CC9F0'; }
+    else if(duration >= 0.5){ dmg = 2; bSize = 10; bColor = '#FB8500'; }
+    lastShotTime = Date.now();
+    shootPlayer(dmg, bSize, bColor);
+});
+
+function startGame(lvl){
+    level = lvl;
+    gridSize = 16 + Math.floor((level - 1) * 9 / 9);
+    tileSize = cvs.width / gridSize;
+    enemiesTotal = 5 + (level - 1) * 2;
+    mapGrid = [];
+    for(let r = 0; r < gridSize; r++){
+        let row = [];
+        for(let c = 0; c < gridSize; c++){
+            if(r === gridSize - 1 && c === Math.floor(gridSize / 2)){ row.push(3); }
+            else if((r % 3 === 1) && (c % 4 === 1)){ row.push(2); }
+            else if((r % 2 === 0 && c % 3 === 0) && r > 0 && r < gridSize - 2){ row.push(1); }
+            else { row.push(0); }
+        }
+        mapGrid.push(row);
+    }
+    enemiesSpawned = 0; enemiesDefeated = 0;
+    enemies = []; bullets = [];
+    player.size = Math.max(14, tileSize - 4);
+    player.x = (gridSize * tileSize) / 2 - player.size / 2;
+    player.y = (gridSize - 2) * tileSize;
+    player.hp = player.maxHp;
+    hqHp = 20; hqMaxHp = 20;
+    score = 0; lives = 3; gameState = 'PLAYING';
+}
+
+function shootPlayer(dmg, bSize, bColor){
+    let bx = player.x + player.size/2, by = player.y + player.size/2, bdx = 0, bdy = 0;
+    if(player.dir === 0) bdy = -6;
+    else if(player.dir === 1) bdx = 6;
+    else if(player.dir === 2) bdy = 6;
+    else if(player.dir === 3) bdx = -6;
+    bullets.push({x: bx - bSize/2, y: by - bSize/2, w: bSize, h: bSize, dx: bdx, dy: bdy, fromPlayer: true, damage: dmg, color: bColor});
+}
+
+function checkCollision(x, y, size){
+    let left = x, right = x + size, top = y, bottom = y + size;
+    if(left < 0 || right > cvs.width || top < 0 || bottom > cvs.height) return true;
+    let r1 = Math.floor(top/tileSize), r2 = Math.floor(bottom/tileSize), c1 = Math.floor(left/tileSize), c2 = Math.floor(right/tileSize);
+    for(let r = r1; r <= r2; r++){
+        for(let c = c1; c <= c2; c++){
+            if(r >= 0 && r < gridSize && c >= 0 && c < gridSize){
+                if(mapGrid[r][c] === 1 || mapGrid[r][c] === 2 || (mapGrid[r][c] === 3 && hqHp > 0)) return true;
+            }
+        }
+    }
+    return false;
+}
+
+function spawnEnemy(){
+    if(gameState === 'PLAYING' && enemies.length < 4 && enemiesSpawned < enemiesTotal){
+        let size = Math.max(14, tileSize - 4), ex, eyn = 20, safe = false, attempts = 0;
+        while(!safe && attempts < 15){
+            ex = Math.random() * (cvs.width - size - 20) + 10;
+            if(!checkCollision(ex, eyn, size)){ safe = true; }
+            attempts++;
+        }
+        if(safe){
+            let eSpeed = 1 + (level - 1) * 0.05, eHp = 10 + (level - 1) * 2;
+            enemies.push({x: ex, y: eyn, size: size, speed: eSpeed, dir: 2, color: '#35A7FF', shootTimer: 0, hp: eHp, maxHp: eHp});
+            enemiesSpawned++;
+        }
+    }
+}
+setInterval(spawnEnemy, 2000);
+
+function update(){
+    if(gameState !== 'PLAYING') return;
+    healCounter++;
+    if(healCounter >= 300){
+        healCounter = 0;
+        if(player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + 0.5);
+        if(hqHp > 0 && hqHp < hqMaxHp) hqHp = Math.min(hqMaxHp, hqHp + 0.25);
+    }
+    
+    let moving = false, nx = player.x, ny = player.y;
+    if(keys['ArrowUp'] || keys['KeyW']){ player.dir = 0; ny -= player.speed; moving = true; }
+    else if(keys['ArrowDown'] || keys['KeyS']){ player.dir = 2; ny += player.speed; moving = true; }
+    else if(keys['ArrowLeft'] || keys['KeyA']){ player.dir = 3; nx -= player.speed; moving = true; }
+    else if(keys['ArrowRight'] || keys['KeyD']){ player.dir = 1; nx += player.speed; moving = true; }
+
+    if(moving){
+        if(!checkCollision(nx, player.y, player.size)) player.x = nx;
+        if(!checkCollision(player.x, ny, player.size)) player.y = ny;
+    }
+
+    bullets.forEach((b, index) => {
+        b.x += b.dx; b.y += b.dy;
+        let cr = Math.floor((b.y + b.h/2)/tileSize), cc = Math.floor((b.x + b.w/2)/tileSize);
+        if(cr >= 0 && cr < gridSize && cc >= 0 && cc < gridSize){
+            if(mapGrid[cr][cc] === 1){ mapGrid[cr][cc] = 0; bullets.splice(index, 1); return; }
+            else if(mapGrid[cr][cc] === 2){ bullets.splice(index, 1); return; }
+            else if(mapGrid[cr][cc] === 3 && hqHp > 0){
+                hqHp -= b.damage; bullets.splice(index, 1);
+                if(hqHp <= 0){ gameState = 'GAMEOVER'; }
+                return;
+            }
+        }
+        if(b.x < 0 || b.x > cvs.width || b.y < 0 || b.y > cvs.height){ bullets.splice(index, 1); return; }
+
+        if(b.fromPlayer){
+            enemies.forEach((en, eIdx) => {
+                if(b.x < en.x + en.size && b.x + b.w > en.x && b.y < en.y + en.size && b.y + b.h > en.y){
+                    en.hp -= b.damage;
+                    bullets.splice(index, 1);
+                    if(en.hp <= 0){
+                        enemies.splice(eIdx, 1);
+                        score += 100;
+                        enemiesDefeated++;
+                        if(enemiesDefeated >= enemiesTotal){ gameState = 'VICTORY'; }
+                    }
+                }
+            });
+        } else {
+            if(b.x < player.x + player.size && b.x + b.w > player.x && b.y < player.y + player.size && b.y + b.h > player.y){
+                player.hp -= 1;
+                bullets.splice(index, 1);
+                if(player.hp <= 0){
+                    lives--;
+                    if(lives <= 0){ gameState = 'GAMEOVER'; }
+                    else { player.hp = 10; player.x = gridSize * tileSize / 2 - player.size / 2; player.y = (gridSize - 2) * tileSize; }
+                }
+            }
+        }
+    });
+
+    enemies.forEach((en) => {
+        en.shootTimer++;
+        let limit = Math.max(40, 90 - (level - 1) * 3);
+        if(en.shootTimer > limit){
+            en.shootTimer = 0;
+            let edx = 0, edy = 0, bSpd = 3 + (level - 1) * 0.1;
+            if(en.dir === 0) edy = -bSpd;
+            else if(en.dir === 1) edx = bSpd;
+            else if(en.dir === 2) edy = bSpd;
+            else if(en.dir === 3) edx = -bSpd;
+            bullets.push({x: en.x + en.size/2 - 3, y: en.y + en.size/2 - 3, w: 6, h: 6, dx: edx, dy: edy, fromPlayer: false, damage: 1, color: '#FFE600'});
+        }
+        let exn = en.x, eyn = en.y;
+        if(en.dir === 0) eyn -= en.speed;
+        else if(en.dir === 1) exn += en.speed;
+        else if(en.dir === 2) eyn += en.speed;
+        else if(en.dir === 3) exn -= en.speed;
+
+        if(!checkCollision(exn, eyn, en.size)){ en.x = exn; en.y = eyn; }
+        else { en.dir = Math.floor(Math.random() * 4); }
+    });
+
+    enemies.forEach(en => {
+        let hqC = Math.floor(gridSize / 2), hqX = hqC * tileSize, hqY = (gridSize - 1) * tileSize;
+        if(hqHp > 0 && en.x < hqX + tileSize && en.x + en.size > hqX && en.y < hqY + tileSize && en.y + en.size > hqY){
+            hqHp -= 0.5;
+            if(
