@@ -256,3 +256,25 @@ function drawTank(t){
     ctx.fillRect(t.x, hpY, hpWidth, 3);
 
     if(t === player && isCharging){
+        let cTime = (Date.now() - chargeStart) / 1000, pW = Math.min(1, cTime / 4.5) * t.size;
+        let chargeY = (t.y < 20) ? (t.y + t.size + 7) : (t.y - 15);
+        ctx.fillStyle = '#00F5D4';
+        ctx.fillRect(t.x, chargeY, pW, 3);
+    }
+}
+
+function draw(){
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    
+    if(gameState === 'MENU'){
+        ctx.fillStyle = '#FF5964'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('CHỌN LEVEL (1 - 10)', cvs.width / 2, 50);
+        ctx.fillStyle = '#FFF'; ctx.font = '12px sans-serif';
+        ctx.fillText('Bản đồ mở rộng từ 16x16 lên 25x25', cvs.width / 2, 78);
+
+        let startX = 45, startY = 120, btnW = 75, btnH = 36, gapX = 12, gapY = 12;
+        for(let i = 1; i <= 10; i++){
+            let r = Math.floor((i - 1) / 5), c = (i - 1) % 5;
+            let bx = startX + c * (btnW + gapX), by = startY + r * (btnH + gapY);
+            ctx.fillStyle = '#35A7FF'; ctx.fillRect(bx, by, btnW, btnH);
+            ctx.fillStyle = '#FFF'; ctx.font = 'bold 14px sans-serif
